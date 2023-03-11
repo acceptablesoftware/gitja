@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::borrow::Cow;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use clap::Parser;
-
-// TODO: probs better to add a 'run' subcommand (where 'config' becomes positional and -q and -f
-// are specific to 'run') and convert 'init' into a subcommand.
+use rust_embed::RustEmbed;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -25,11 +26,78 @@ struct Cli {
     init: bool,
 }
 
-fn main() {
+fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    println!("config: {:#?}", cli.config);
-    println!("quiet: {:#?}", cli.quiet);
-    println!("force: {:#?}", cli.force);
-    println!("init: {:#?}", cli.init);
+    if cli.init {
+        if init() {
+            return ExitCode::SUCCESS;
+        } else {
+            return ExitCode::from(1);
+        }
+    }
+    ExitCode::SUCCESS
+}
+
+#[derive(RustEmbed)]
+#[folder = "."]
+#[include = "templates/base/*"]
+#[include = "config.dhall"]
+struct Assets;
+
+fn init() -> bool {
+    if ["./template", "./config.dhall"]
+        .iter()
+        .map(Path::new)
+        .filter(|p| {
+            p.try_exists()
+                .unwrap_or_else(|_| panic!("Failed to check existence of {}.", p.display()))
+        })
+        .map(|p| println!("Found path: {}", p.display()))
+        .fold(false, |_, _| true)
+    {
+        println!("Please remove to continue.");
+        false
+    } else {
+        if Assets::iter().map(write_asset).all(|success| success) {
+            println!("Created a template at ./template.");
+            println!("Created a config at ./config.dhall.");
+            println!("See config for more information how setting up.");
+
+            if Path::new("./output")
+                .try_exists()
+                .expect("Failed to check existence of ./output")
+            {
+                println!(concat!(
+                    "WARNING: ./output already exists and would be overwritten ",
+                    "unless you move it or modify gitja's output destination ",
+                    "in config.dhall.",
+                ))
+            }
+        } else {
+            println!("There were some failures.");
+        }
+        true
+    }
+}
+
+fn write_asset(name: Cow<'static, str>) -> bool {
+    let asset = Assets::get(&name).unwrap();
+    let mut buf = PathBuf::from(name.as_ref());
+
+    // We copy templates/base/* from the source to template/* locally, so need to convert those
+    // first parts of the paths.
+    if let Ok(stripped) = buf.as_path().strip_prefix("templates/base") {
+        buf = Path::new("template").join(stripped);
+    }
+
+    let path = buf.as_path();
+    path.parent().and_then(|p| fs::create_dir_all(p).ok());
+
+    if fs::write(path, &asset.data).is_err() {
+        println!("Failed to write to {}", path.display());
+        false
+    } else {
+        true
+    }
 }
