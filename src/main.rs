@@ -1,7 +1,10 @@
+use std::borrow::Cow;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
+use rust_embed::RustEmbed;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -36,6 +39,12 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
+#[derive(RustEmbed)]
+#[folder = "."]
+#[include = "templates/base/*"]
+#[include = "config.dhall"]
+struct Assets;
+
 fn init() -> bool {
     if ["./template", "./config.dhall"]
         .iter()
@@ -47,13 +56,39 @@ fn init() -> bool {
         println!("Please remove to continue.");
         false
     } else {
-        println!("Did stuff...");
-        // 3. Copy template from `templates/base` to `./template` *
-        // 4. Copy `config.dhall` to `./config.dhall *
-        // 5. Print a helpful message informing user of new files.
-        // 6. If `./output` exists, warn user that running gitja immediately will overwrite that
-        //    folder.
-        // * embed assets into binary
+        if Assets::iter()
+            .map(write_asset)
+            .fold(true, |acc, success| acc && success)
+        {
+            println!("Created a template at ./template.");
+            println!("Created a config at ./config.dhall.");
+            println!("See config for more information how setting up.");
+            // TODO: If `./output` exists, warn user that running gitja immediately will overwrite
+            // that folder.
+        } else {
+            println!("There were some failures.");
+        }
+        true
+    }
+}
+
+fn write_asset(name: Cow<'static, str>) -> bool {
+    let asset = Assets::get(&name).unwrap();
+    let mut buf = PathBuf::from(name.as_ref());
+
+    // We copy templates/base/* from the source to template/* locally, so need to convert those
+    // first parts of the paths.
+    if let Ok(stripped) = buf.as_path().strip_prefix("templates/base") {
+        buf = Path::new("template").join(stripped);
+    }
+
+    let path = buf.as_path();
+    path.parent().and_then(|p| fs::create_dir_all(p).ok());
+
+    if fs::write(&path, &asset.data).is_err() {
+        println!("Failed to write to {}", path.display());
+        false
+    } else {
         true
     }
 }

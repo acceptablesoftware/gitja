@@ -14,3 +14,4 @@ license = "MIT"
 
 [dependencies]
 clap = { version = "4.1.8", features = ["derive"] }
+rust-embed = { version = "6.6.0", features = ["include-exclude"] }
