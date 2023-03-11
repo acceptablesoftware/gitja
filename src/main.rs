@@ -49,22 +49,31 @@ fn init() -> bool {
     if ["./template", "./config.dhall"]
         .iter()
         .map(Path::new)
-        .filter(|p| p.try_exists().expect("message"))
+        .filter(|p| {
+            p.try_exists()
+                .unwrap_or_else(|_| panic!("Failed to check existence of {}.", p.display()))
+        })
         .map(|p| println!("Found path: {}", p.display()))
         .fold(false, |_, _| true)
     {
         println!("Please remove to continue.");
         false
     } else {
-        if Assets::iter()
-            .map(write_asset)
-            .fold(true, |acc, success| acc && success)
-        {
+        if Assets::iter().map(write_asset).all(|success| success) {
             println!("Created a template at ./template.");
             println!("Created a config at ./config.dhall.");
             println!("See config for more information how setting up.");
-            // TODO: If `./output` exists, warn user that running gitja immediately will overwrite
-            // that folder.
+
+            if Path::new("./output")
+                .try_exists()
+                .expect("Failed to check existence of ./output")
+            {
+                println!(concat!(
+                    "WARNING: ./output already exists and would be overwritten ",
+                    "unless you move it or modify gitja's output destination ",
+                    "in config.dhall.",
+                ))
+            }
         } else {
             println!("There were some failures.");
         }
@@ -85,7 +94,7 @@ fn write_asset(name: Cow<'static, str>) -> bool {
     let path = buf.as_path();
     path.parent().and_then(|p| fs::create_dir_all(p).ok());
 
-    if fs::write(&path, &asset.data).is_err() {
+    if fs::write(path, &asset.data).is_err() {
         println!("Failed to write to {}", path.display());
         false
     } else {
