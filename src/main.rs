@@ -1,9 +1,7 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use clap::Parser;
-
-// TODO: probs better to add a 'run' subcommand (where 'config' becomes positional and -q and -f
-// are specific to 'run') and convert 'init' into a subcommand.
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -25,11 +23,37 @@ struct Cli {
     init: bool,
 }
 
-fn main() {
+fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    println!("config: {:#?}", cli.config);
-    println!("quiet: {:#?}", cli.quiet);
-    println!("force: {:#?}", cli.force);
-    println!("init: {:#?}", cli.init);
+    if cli.init {
+        if init() {
+            return ExitCode::SUCCESS;
+        } else {
+            return ExitCode::from(1);
+        }
+    }
+    ExitCode::SUCCESS
+}
+
+fn init() -> bool {
+    if ["./template", "./config.dhall"]
+        .iter()
+        .map(Path::new)
+        .filter(|p| p.try_exists().expect("message"))
+        .map(|p| println!("Found path: {}", p.display()))
+        .fold(false, |_, _| true)
+    {
+        println!("Please remove to continue.");
+        false
+    } else {
+        println!("Did stuff...");
+        // 3. Copy template from `templates/base` to `./template` *
+        // 4. Copy `config.dhall` to `./config.dhall *
+        // 5. Print a helpful message informing user of new files.
+        // 6. If `./output` exists, warn user that running gitja immediately will overwrite that
+        //    folder.
+        // * embed assets into binary
+        true
+    }
 }
