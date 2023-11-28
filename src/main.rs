@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 mod init;
+mod run;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -46,10 +47,7 @@ fn main() {
             quiet,
             force,
         } => {
-            println!("run");
-            println!("config: {:#?}", config);
-            println!("quiet: {:#?}", quiet);
-            println!("force: {:#?}", force);
+            run::run(config, quiet, force);
         }
     }
 }
