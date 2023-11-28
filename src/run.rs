@@ -1,27 +1,16 @@
 use std::path::PathBuf;
 
-use serde::Deserialize;
-use serde_dhall;
+use crate::config;
 
-#[derive(Deserialize)]
-struct Config {
-    repos: Vec<PathBuf>,
-    scan: bool,
-    template: PathBuf,
-    output: PathBuf,
-    host: String,
-}
-
-pub fn run(config_path: std::path::PathBuf, quiet: bool, force: bool) {
-    // TODO: Catch and handle the unwrap error
-    let config: Config = serde_dhall::from_file(config_path).parse().unwrap();
+pub fn run(config_path: PathBuf, quiet: bool, force: bool) {
+    let conf = config::load_config(config_path);
 
     println!("run");
-    println!("repo_paths: {:#?}", config.repos);
-    println!("scan: {:#?}", config.scan);
-    println!("template: {:#?}", config.template);
-    println!("output: {:#?}", config.output);
-    println!("host: {:#?}", config.host);
+    println!("repo_paths: {:#?}", conf.repos);
+    println!("scan: {:#?}", conf.scan);
+    println!("template: {:#?}", conf.template);
+    println!("output: {:#?}", conf.output);
+    println!("host: {:#?}", conf.host);
     println!("quiet: {:#?}", quiet);
     println!("force: {:#?}", force);
 }
