@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+mod init;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -37,7 +39,7 @@ fn main() {
 
     match args.command {
         Commands::Init => {
-            println!("init");
+            init::init();
         }
         Commands::Run {
             config,
